@@ -14,7 +14,7 @@ import Setting from '../screens/Setting';
 const Tab = createBottomTabNavigator();
 
 const ACTIVE_COLOR = '#FFFFFF'; // Color for the active icon
-const INACTIVE_COLOR = '#0B0F4C'; // Color for inactive icons
+const INACTIVE_COLOR = '#1c72c4'; // Color for inactive icons
 const BACKGROUND = '#0B0F4C'; // Background color when the icon is focused
 const TEXT_COLOR = '#0B0F4C'; // Always navy color for text
 
@@ -73,7 +73,6 @@ const TabNavigation = () => {
             <Tab.Screen name="Notifications" component={Notic} options={{ headerShown: false }} />
             <Tab.Screen name="Message" component={Message} options={{ headerShown: false }} />
             <Tab.Screen name="Profile" component={Profile} options={{ headerShown: false }} />
-            <Tab.Screen name="Settings" component={Setting} options={{ headerShown: false}} />
         </Tab.Navigator>
     );
 };

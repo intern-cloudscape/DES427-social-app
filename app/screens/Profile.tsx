@@ -1,116 +1,92 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Image, StyleSheet, FlatList, Alert, TouchableOpacity } from 'react-native';
 import { FIREBASE_AUTH, FIREBASE_DB } from '../../FirebaseConfig';
-import { signOut } from 'firebase/auth';
-import { ref, get, update } from 'firebase/database';
+import { ref, get } from 'firebase/database';
+import AntDesign from '@expo/vector-icons/AntDesign'; // เพิ่มการนำเข้า AntDesign
 import { useNavigation } from '@react-navigation/native';
+import Setting from '../screens/Setting';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../App';
 
-type ProfileScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
+const Profile = () => {
+  const [profileData, setProfileData] = useState({
+    username: '',
+    following: 0,
+    followers: 0,
+    posts: 0,
+    likes: 0,
+    postsImages: [],
+  });
 
-const Profile: React.FC = () => {
-  const navigation = useNavigation<ProfileScreenNavigationProp>();
-  const [username, setUsername] = useState('');
-  const [newUsername, setNewUsername] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [isEditing, setIsEditing] = useState(false); // State to toggle edit form visibility
-
-  const auth = FIREBASE_AUTH;
-
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  
   useEffect(() => {
-    const fetchUserData = async () => {
+    const fetchUserProfile = async () => {
       try {
-        const user = auth.currentUser;
+        const user = FIREBASE_AUTH.currentUser;
         if (user) {
           const userRef = ref(FIREBASE_DB, 'users/' + user.uid);
           const snapshot = await get(userRef);
           if (snapshot.exists()) {
             const userData = snapshot.val();
-            setUsername(userData.username); // ดึง username จาก Realtime Database
+            setProfileData({
+              username: userData.username,
+              following: userData.following || 0,
+              followers: userData.followers || 0,
+              posts: userData.posts || 0,
+              likes: userData.likes || 0,
+              postsImages: userData.postsImages || [],
+            });
           }
         }
       } catch (error) {
         console.log(error);
-        Alert.alert('Error', 'Failed to load user data.');
+        Alert.alert('Error', 'Failed to load profile data.');
       }
     };
 
-    fetchUserData();
+    fetchUserProfile();
   }, []);
-
-  const handleUpdateUsername = async () => {
-    if (!newUsername) {
-      Alert.alert('Error', 'Please enter a new username.');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const user = auth.currentUser;
-      if (user) {
-        const userRef = ref(FIREBASE_DB, 'users/' + user.uid);
-        await update(userRef, {
-          username: newUsername,
-        });
-
-        setUsername(newUsername); // Update the local username
-        setNewUsername(''); // Clear input field
-        setIsEditing(false); // Close the edit form
-        Alert.alert('Success', 'Username updated successfully!');
-      }
-    } catch (error) {
-      console.log(error);
-      Alert.alert('Error', 'Failed to update username.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      navigation.navigate('Login');
-    } catch (error) {
-      console.log(error);
-      Alert.alert('Error', 'Failed to log out.');
-    }
-  };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Profile</Text>
-      <Text style={styles.label}>Username: {username}</Text>
+      <View style={styles.header}>
+        {/* Profile Picture */}
+        <Image
+          source={{ uri: 'https://example.com/profile-image.jpg' }} // Replace with actual profile image URL
+          style={styles.profileImage}
+        />
+        {/* Username and Stats */}
+        <View style={styles.userInfo}>
+          <Text style={styles.username}>{profileData.username}</Text>
+          <Text style={styles.handle}>@{profileData.username}</Text>
+          <View style={styles.stats}>
+            <Text>{profileData.following} Following</Text>
+            <Text>{profileData.followers} Followers</Text>
+            <Text>{profileData.posts} Posts</Text>
+            <Text>{profileData.likes} Likes</Text>
+          </View>
+          <View style={styles.underline} />
+        </View>
+        {/* Setting Icon */}
+        <TouchableOpacity onPress={() => {
+          console.log('Navigating to Settings');
+          navigation.navigate('Setting');
+        }}>
+          <AntDesign name="setting" size={30} color="black" style={styles.settingIcon} />
+        </TouchableOpacity>
+      </View>
 
-      {/* Button to show edit form */}
-      <TouchableOpacity style={styles.button} onPress={() => setIsEditing(!isEditing)}>
-        <Text style={styles.buttonText}>{isEditing ? 'Cancel' : 'Edit Profile'}</Text>
-      </TouchableOpacity>
-
-      {/* Edit Profile Form */}
-      {isEditing && (
-        <>
-          <TextInput
-            value={newUsername}
-            style={styles.input}
-            placeholder="Enter new username"
-            onChangeText={(text) => setNewUsername(text)}
-          />
-
-          <TouchableOpacity
-            style={styles.button}
-            onPress={handleUpdateUsername}
-            disabled={loading}
-          >
-            <Text style={styles.buttonText}>{loading ? 'Updating...' : 'Update Username'}</Text>
-          </TouchableOpacity>
-
-          {/* Logout Button */}
-          <TouchableOpacity style={styles.button} onPress={handleLogout}>
-            <Text style={styles.buttonText}>Logout</Text>
-          </TouchableOpacity>
-        </>
-      )}
+      {/* Post Images in Grid */}
+      <FlatList
+        data={profileData.postsImages}
+        keyExtractor={(item, index) => index.toString()}
+        numColumns={3}
+        renderItem={({ item }) => (
+          <Image source={{ uri: item }} style={styles.postImage} />
+        )}
+        contentContainerStyle={styles.grid}
+      />
     </View>
   );
 };
@@ -118,38 +94,63 @@ const Profile: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    justifyContent: 'center',
+    backgroundColor: '#fff',
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    marginBottom: 30,
-    textAlign: 'center',
-  },
-  label: {
-    fontSize: 20,
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  input: {
-    height: 50,
-    borderRadius: 10,
-    paddingHorizontal: 20,
-    backgroundColor: '#f0f0f0',
-    marginVertical: 8,
-  },
-  button: {
-    backgroundColor: '#1c72c4',
-    paddingVertical: 15,
-    borderRadius: 10,
+  header: {
+    flexDirection: 'row',
+    padding: 16,
     alignItems: 'center',
-    marginTop: 20,
+    justifyContent: 'space-between', // ให้ content อยู่ห่างกัน
   },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
+  profileImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginRight: 16,
+  },
+  userInfo: {
+    flex: 1,
+  },
+  username: {
+    fontSize: 18,
     fontWeight: 'bold',
+    marginTop: 100,
+  },
+  handle: {
+    fontSize: 14,
+    color: 'gray',
+    marginTop: 10,
+  },
+  stats: {
+    marginTop: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+  },
+  statsText: {
+    marginBottom: 8,
+  },
+  grid: {
+    padding: 16,
+  },
+  postImage: {
+    width: '30%',
+    aspectRatio: 1,
+    margin: '1.5%',
+    borderRadius: 8,
+  },
+  underline: {
+    width: '100%',
+    height: 1.5,
+    backgroundColor: '#000000',
+    alignSelf: 'center',
+    marginTop: 10,
+  },
+  settingIcon: {
+    position: 'absolute',
+    right: 5,
+    top: 16,
+    marginTop:-60,
   },
 });
 
